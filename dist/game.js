@@ -1,29 +1,491 @@
-const $ = id => document.getElementById(id);
-const arena = $('arena'), video = $('video');
-const cfg = { easy: {life:3600, interval:1800, size:18}, normal:{life:2600,interval:1250,size:15}, hard:{life:1700,interval:850,size:12} };
-let state='idle', demo=false, stream=null, score=0, combo=0, best=0, elapsed=0, last=0, nextSpawn=0, countdown=0, lastDetect=0, generation=0, sound=false, audio=null;
-let targets=[], previous=null, frameId=0;
-const buffer=document.createElement('canvas');buffer.width=160;buffer.height=120;
-const ctx=buffer.getContext('2d',{willReadFrequently:true});
-try { best=Number(localStorage.getItem('motion-pop-best'))||0; } catch {}
-$('best').innerHTML=`${best||'—'} <small>pt</small>`;
-function update(){ $('score').textContent=String(score).padStart(3,'0');$('combo').textContent=`× ${combo}`;$('time').textContent=Math.ceil(Math.max(0,60-elapsed/1000));$('progress').style.width=`${Math.max(0,100-elapsed/600)}%`; }
-function showError(message){$('error').textContent=message;$('error').hidden=!message;}
-function clearTargets(){targets.forEach(t=>t.el.remove());targets=[];}
-function stopCamera(){ if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;video.classList.remove('active');previous=null;$('live-dot').classList.remove('active');$('camera-status').textContent='カメラ未接続'; }
-function home(){generation++;state='idle';clearTargets();stopCamera();$('welcome').hidden=false;$('overlay').hidden=true;$('demo-label').hidden=true;$('pause').disabled=true;$('stop').hidden=true;$('difficulty').disabled=false;$('connect').disabled=false;$('connect').innerHTML='カメラをつないで遊ぶ <span>↗</span>';$('mode-label').textContent='MOTION POP / 01';$('arena-hint').textContent='全身が映るように、カメラから少し離れてね';}
-function overlay(label,title,copy=''){ $('overlay').hidden=false;$('overlay-label').textContent=label;$('overlay-title').textContent=title;$('overlay-copy').textContent=copy;$('resume').hidden=true;$('replay').hidden=true;$('back').hidden=true; }
-function start(isDemo){demo=isDemo;score=0;combo=0;elapsed=0;nextSpawn=0;countdown=3000;previous=null;clearTargets();state='countdown';$('welcome').hidden=true;$('demo-label').hidden=!demo;$('difficulty').disabled=true;$('pause').disabled=true;$('stop').hidden=false;$('mode-label').textContent=demo?'TRY MODE / 01':'LIVE PLAY / 01';$('arena-hint').textContent=demo?'クリック・タッチ、または数字キー 1〜3 でポップ':'丸に重ねて手や体を動かそう';overlay('GET READY','3','両手を広げて、準備しよう。');update(); }
-async function connect(){if(state!=='idle')return;showError('');const attempt=++generation;state='connecting';$('connect').disabled=true;$('connect').textContent='カメラに接続中…';try{if(!navigator.mediaDevices?.getUserMedia)throw new Error('unsupported');const acquired=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});if(attempt!==generation){acquired.getTracks().forEach(t=>t.stop());return;}stream=acquired;video.srcObject=stream;await video.play();if(attempt!==generation)return;video.classList.add('active');$('camera-status').textContent='カメラ接続中';$('live-dot').classList.add('active');stream.getVideoTracks()[0].addEventListener('ended',()=>{if(state!=='idle'){home();showError('カメラの接続が切れました。もう一度つなぐか、おためしモードで遊んでください。');}});start(false);}catch(e){if(attempt!==generation)return;home();const messages={NotAllowedError:'カメラへのアクセスが許可されていません。ブラウザのカメラ設定を確認するか、おためしモードで遊んでください。',NotFoundError:'カメラが見つかりません。カメラを接続するか、おためしモードで遊んでください。',NotReadableError:'カメラを使用できません。ほかのアプリで使用していないか確認してください。'};showError(messages[e.name]||'カメラを起動できませんでした。HTTPS または localhost で開き、カメラ対応ブラウザでお試しください。');}}
-function spawn(){if(targets.length>=3)return;const setting=cfg[$('difficulty').value];let x,y;for(let i=0;i<20;i++){x=15+Math.random()*70;y=23+Math.random()*49;if(targets.every(t=>Math.hypot(t.x-x,t.y-y)>setting.size*1.3))break;}const el=document.createElement('button');el.className='target'+(Math.random()>.65?' orange':'');const slot=[1,2,3].find(n=>!targets.some(t=>t.slot===n));el.textContent=demo?slot:'✦';el.setAttribute('aria-label',`ターゲット ${slot}`);el.style.left=x+'%';el.style.top=y+'%';el.style.width=setting.size+'%';const t={el,x,y,slot,age:0,life:setting.life,size:setting.size,activeFrames:0};el.onclick=()=>{if(demo)hit(t);};$('targets').append(el);targets.push(t);}
-function beep(){if(!sound)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume();const oscillator=audio.createOscillator(),gain=audio.createGain();oscillator.connect(gain);gain.connect(audio.destination);oscillator.frequency.setValueAtTime(500+Math.min(combo,15)*45,audio.currentTime);oscillator.frequency.exponentialRampToValueAtTime(1000,audio.currentTime+.08);gain.gain.setValueAtTime(.06,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.15);oscillator.start();oscillator.stop(audio.currentTime+.15);}catch{}}
-function hit(t){if(state!=='playing'||!targets.includes(t))return;combo++;const points=10+Math.min(20,Math.floor((combo-1)/5)*5);score+=points;targets=targets.filter(v=>v!==t);t.el.remove();const pop=document.createElement('span');pop.className='pop';pop.textContent=`+${points}`;pop.style.left=t.x+'%';pop.style.top=t.y+'%';$('targets').append(pop);setTimeout(()=>pop.remove(),650);beep();update();}
-function detect(){if(video.readyState<2)return;const width=160,height=Math.round(160*arena.clientHeight/arena.clientWidth);if(buffer.height!==height){buffer.height=height;previous=null;}const ratio=buffer.width/buffer.height;let sw=video.videoWidth,sh=video.videoHeight;if(sw/sh>ratio)sw=sh*ratio;else sh=sw/ratio;ctx.save();ctx.translate(160,0);ctx.scale(-1,1);ctx.drawImage(video,(video.videoWidth-sw)/2,(video.videoHeight-sh)/2,sw,sh,0,0,160,height);ctx.restore();const current=ctx.getImageData(0,0,160,height).data;if(previous){const threshold=85-Number($('sensitivity').value);for(const t of [...targets]){if(t.age<350)continue;const cx=t.x*1.6,cy=t.y*height/100,r=t.size*.8;let moved=0,total=0;for(let y=Math.max(0,Math.floor(cy-r));y<Math.min(height,cy+r);y+=2){for(let x=Math.max(0,Math.floor(cx-r));x<Math.min(160,cx+r);x+=2){if((x-cx)**2+(y-cy)**2>r*r)continue;const i=(y*160+x)*4;const diff=(Math.abs(current[i]-previous[i])+Math.abs(current[i+1]-previous[i+1])+Math.abs(current[i+2]-previous[i+2]))/3;total++;if(diff>threshold)moved++;}}t.activeFrames=total&&moved/total>.12?t.activeFrames+1:0;if(t.activeFrames>=2)hit(t);}}previous=current;}
-function finish(){state='finished';clearTargets();stopCamera();$('pause').disabled=true;$('stop').hidden=true;let record=score>best;if(record){best=score;try{localStorage.setItem('motion-pop-best',String(best));}catch{}}$('best').innerHTML=`${best||'—'} <small>pt</small>`;overlay(record?'NEW PERSONAL BEST':'NICE MOVES!',`${score} pt`,demo?'おためし完了！次はカメラで体を動かしてみよう。':'60秒、おつかれさま！少し休んで、また挑戦しよう。');$('replay').hidden=false;$('back').hidden=false;update();}
-function pause(){if(state==='playing'){state='paused';overlay('TAKE A BREATH','ひとやすみ','準備ができたら、つづけよう。');$('resume').hidden=false;$('pause').textContent='▶ つづける';}else if(state==='paused'){state='playing';previous=null;$('overlay').hidden=true;$('pause').textContent='Ⅱ 一時停止';}}
-function tick(now){const dt=Math.min(now-last,200);last=now;if(state==='countdown'){countdown-=dt;$('overlay-title').textContent=String(Math.max(1,Math.ceil(countdown/1000)));if(countdown<=0){state='playing';$('overlay').hidden=true;$('pause').disabled=false;$('pause').textContent='Ⅱ 一時停止';previous=null;}}if(state==='playing'){elapsed+=dt;if(elapsed>=60000){elapsed=60000;finish();}else{nextSpawn-=dt;if(nextSpawn<=0){spawn();nextSpawn=cfg[$('difficulty').value].interval;}for(const t of [...targets]){t.age+=dt;t.el.style.opacity=String(Math.max(.35,1-t.age/t.life*.5));if(t.age>=t.life){t.el.remove();targets=targets.filter(v=>v!==t);combo=0;}}if(!demo&&now-lastDetect>65){lastDetect=now;detect();}update();}}frameId=requestAnimationFrame(tick);}
-$('connect').onclick=connect;$('demo').onclick=()=>{generation++;stopCamera();showError('');start(true);};$('pause').onclick=pause;$('resume').onclick=pause;$('stop').onclick=home;$('back').onclick=home;$('replay').onclick=()=>{const wasDemo=demo;home();wasDemo?start(true):connect();};$('sound').onclick=()=>{sound=!sound;$('sound').textContent=`音 ${sound?'ON':'OFF'}`;$('sound').setAttribute('aria-label',`サウンドを${sound?'オフ':'オン'}にする`);if(sound)beep();};$('difficulty').onchange=()=>{$('difficulty-copy').textContent={easy:'大きめのターゲットを、自分のペースで。',normal:'ちょうどいいペースで、全身を動かそう。',hard:'小さなターゲットに、すばやくタッチ。'}[$('difficulty').value];};$('sensitivity').oninput=()=>{$('sensitivity-label').textContent=Number($('sensitivity').value)<28?'ひかえめ':Number($('sensitivity').value)>48?'敏感':'標準';};
-document.addEventListener('keydown',e=>{if(['INPUT','SELECT','BUTTON'].includes(document.activeElement.tagName))return;if(e.code==='Space'&&['playing','paused'].includes(state)){e.preventDefault();pause();}if(demo&&state==='playing'&&/^[123]$/.test(e.key)){const t=targets.find(t=>t.slot===Number(e.key));if(t)hit(t);}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='playing')pause();if(document.hidden&&state==='countdown')home();});window.addEventListener('pagehide',()=>{generation++;stopCamera();cancelAnimationFrame(frameId);});
-if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'get_motion_game_status',description:'Read current game state, mode, score and remaining seconds.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>({state,mode:demo?'demo':'camera',score,remainingSeconds:Math.ceil(60-elapsed/1000)})})).catch(()=>{});}catch{}}
+import { Camera, cameraError } from "./lib/camera.mjs";
+import { PoseTracker, poseQuality } from "./lib/pose.mjs";
+import { MovementTracker } from "./lib/movement.mjs";
+import { GameEngine } from "./lib/engine.mjs";
+import { Scene } from "./lib/scene.mjs";
+import { readRanking, saveScore, playerName } from "./lib/ranking.mjs";
+import { flightFrame, destination } from "./lib/flight.mjs";
+import { BonusDetector } from "./lib/bonuses.mjs";
+const $ = (id) => document.getElementById(id);
+const bonuses = new BonusDetector();
+let bonusUntil = 0,
+  missionId = "",
+  scoreSaved = false;
+let storage;
+try {
+  storage = window.localStorage;
+} catch {
+  storage = {
+    getItem: () => null,
+    setItem: () => {
+      throw Error("STORAGE_DISABLED");
+    },
+  };
+}
+const engine = new GameEngine(),
+  camera = new Camera($("camera")),
+  tracker = new PoseTracker(),
+  movement = new MovementTracker(),
+  scene = new Scene($("world"), $("camera"));
+let generation = 0,
+  modelReady = false,
+  last = performance.now(),
+  lastPose = 0,
+  lastMotion = { valid: false, score: 0 },
+  quality = { detected: false, knees: false },
+  previousState = "title",
+  torsoStable = 0,
+  sound = false,
+  audio = null,
+  lastBeep = -1,
+  toastUntil = 0;
+const screens = [
+  "title",
+  "setup",
+  "hud",
+  "countdown",
+  "pause-screen",
+  "error-screen",
+  "launch",
+  "result",
+  "ranking",
+];
+function showScreens() {
+  const state = engine.state;
+  for (const id of screens) $(id).hidden = true;
+  if (state === "result") $("result").hidden = false;
+  if (state === "ranking") $("ranking").hidden = false;
+  if (state === "launch") $("launch").hidden = false;
+  if (state === "title") $("title").hidden = false;
+  if (state === "setup") $("setup").hidden = false;
+  if (["charge", "countdown"].includes(state)) $("hud").hidden = false;
+  if (state === "countdown" || (state === "charge" && engine.elapsed < 0.6))
+    $("countdown").hidden = false;
+  if (state === "paused") {
+    $("pause-screen").hidden = false;
+    $("pause-copy").textContent =
+      engine.pauseReason === "tracking"
+        ? "プレイヤーを見失いました。カメラに映ってから、つづけよう。"
+        : "準備ができたら、つづけよう。";
+  }
+  if (state === "error") $("error-screen").hidden = false;
+  $("game").dataset.state = state;
+  $("exit").hidden = !["setup", "countdown", "charge", "paused"].includes(
+    state,
+  );
+}
+function clearTracking() {
+  bonuses.reset();
+  lastPose = 0;
+  lastMotion = { valid: false, score: 0 };
+  quality = { detected: false, knees: false };
+  movement.reset();
+  scene.points = null;
+  torsoStable = 0;
+}
+function home() {
+  generation++;
+  camera.stop();
+  tracker.close();
+  modelReady = false;
+  clearTracking();
+  engine.reset();
+  showScreens();
+}
+function fail(message) {
+  generation++;
+  camera.stop();
+  tracker.close();
+  modelReady = false;
+  clearTracking();
+  engine.state = "error";
+  $("error-copy").textContent = message;
+  showScreens();
+}
+async function start() {
+  const token = ++generation;
+  engine.setup();
+  clearTracking();
+  bonusUntil = 0;
+  lastBeep = -1;
+  scene.particles = [];
+  $("setup-title").textContent = "CAMERA SETUP";
+  $("setup-copy").textContent = "カメラへのアクセスを許可してください";
+  $("upper-body").hidden = true;
+  showScreens();
+  unlockAudio();
+  try {
+    if (!(await camera.start()) || token !== generation) return;
+    $("setup-copy").textContent = "骨格認識を準備しています…";
+    await tracker.init();
+    if (token !== generation) return;
+    modelReady = true;
+    $("setup-copy").textContent = "少し下がって、頭から膝を映してね";
+  } catch (error) {
+    if (token !== generation) return;
+    fail(
+      camera.stream
+        ? "骨格認識を起動できません。対応ブラウザで開き直してください。"
+        : cameraError(error),
+    );
+  }
+}
+tracker.onPose = (points, timestamp) => {
+  if (!["setup", "countdown", "charge", "paused"].includes(engine.state))
+    return;
+  lastPose = performance.now();
+  quality = poseQuality(points);
+  lastMotion = movement.update(points, timestamp);
+  scene.points = quality.detected ? lastMotion.points : null;
+  if (engine.state === "charge") {
+    if (lastMotion.score > 0.65)
+      scene.emit(lastMotion.points, lastMotion.intensity, lastMotion.speeds);
+    const events = bonuses.update(lastMotion, engine.elapsed);
+    for (const event of events) {
+      if (event.key === "full") engine.charge.fullUntil = engine.elapsed + 3;
+      else engine.charge.add(event.points);
+      $("bonus").replaceChildren(document.createTextNode(event.label));
+      const detail = document.createElement("small");
+      detail.textContent =
+        event.key === "full" ? "3 SEC ×1.5" : `+${event.points}`;
+      $("bonus").append(detail);
+      bonusUntil = performance.now() + (event.key === "full" ? 3000 : 1100);
+      tone(event.key === "full" ? 1100 : 750, 0.16);
+    }
+  }
+};
+tracker.onError = () => {
+  if (modelReady)
+    fail("骨格認識が停止しました。もう一度カメラをつないでください。");
+};
+camera.onDisconnect = () =>
+  fail("カメラの接続が切れました。接続を確認して、もう一度お試しください。");
+function unlockAudio() {
+  if (!sound) return;
+  try {
+    audio ??= new (window.AudioContext || window.webkitAudioContext)();
+    audio.resume();
+  } catch {}
+}
+function tone(frequency = 600, duration = 0.1) {
+  if (!sound || !audio) return;
+  try {
+    const o = audio.createOscillator(),
+      g = audio.createGain();
+    o.connect(g);
+    g.connect(audio.destination);
+    o.type = "sine";
+    o.frequency.setValueAtTime(frequency, audio.currentTime);
+    g.gain.setValueAtTime(0.06, audio.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + duration);
+    o.start();
+    o.stop(audio.currentTime + duration);
+  } catch {}
+}
+function toast(text) {
+  $("toast").textContent = text;
+  $("toast").hidden = false;
+  toastUntil = performance.now() + 4000;
+}
+function tick(now) {
+  const dt = Math.max(0, (now - last) / 1000);
+  last = now;
+  if (
+    modelReady &&
+    ["setup", "countdown", "charge", "paused"].includes(engine.state)
+  )
+    tracker.sample($("camera"), now);
+  const fresh = now - lastPose < 350;
+  const q = fresh ? quality : { detected: false, knees: false };
+  const motion = fresh ? lastMotion : { valid: false, score: 0 };
+  if (!fresh) scene.points = null;
+  engine.step(dt, motion, q);
+  if (previousState !== engine.state) {
+    if (engine.state === "charge") {
+      movement.reset();
+      lastMotion = { valid: false, score: 0 };
+      tone(900, 0.22);
+    }
+    if (engine.state === "launch") {
+      camera.stop();
+      clearTracking();
+    }
+    if (engine.state === "result") prepareResult();
+    showScreens();
+    previousState = engine.state;
+  }
+  if (engine.state === "setup") {
+    torsoStable = q.detected ? torsoStable + Math.min(dt, 0.1) : 0;
+    if (modelReady) {
+      $("setup-title").textContent = q.detected
+        ? "PLAYER DETECTED"
+        : "FIND YOUR POSITION";
+      $("setup-copy").textContent = q.detected
+        ? q.knees
+          ? "その位置でOK！ まもなくスタート"
+          : "そのまま少し下がってください"
+        : "カメラの中央に立ってね";
+    }
+    $("recognition-label").textContent = q.detected
+      ? "PLAYER DETECTED"
+      : "LOOKING FOR PLAYER";
+    $("recognition-fill").style.width =
+      `${Math.min(100, (engine.stable / 1.5) * 100)}%`;
+    $("upper-body").hidden = !(torsoStable > 1.5 && !q.knees);
+  }
+  if (["charge", "countdown"].includes(engine.state)) {
+    $("time").textContent = `00:${String(engine.remaining).padStart(2, "0")}`;
+    $("power").textContent = Math.floor(engine.charge.power).toLocaleString(
+      "en-US",
+    );
+    $("combo").textContent = engine.charge.combo;
+    $("power-fill").style.width = `${engine.charge.fraction * 100}%`;
+    $("power-meter").setAttribute(
+      "aria-valuenow",
+      Math.floor(engine.charge.power),
+    );
+    $("game").style.setProperty("--energy", engine.charge.fraction);
+    $("multiplier").textContent =
+      `×${((1 + Math.min(engine.charge.combo, 40) * 0.01) * (engine.elapsed < engine.charge.fullUntil ? 1.5 : 1)).toFixed(2)}`;
+    $("bonus").style.opacity = now < bonusUntil ? "1" : "0";
+    $("tracking-notice").hidden = q.detected || engine.state !== "charge";
+    $("motion-dot").parentElement.classList.toggle(
+      "active",
+      motion.score > 0.65,
+    );
+    $("power-status").textContent =
+      engine.charge.power >= 9500
+        ? "POWER OVERLOAD!!"
+        : engine.elapsed < engine.charge.fullUntil
+          ? "FULL POWER ×1.5"
+          : [
+            "CHARGING SYSTEM",
+            "ENERGY RISING",
+            "HIGH ENERGY",
+            "READY FOR DEEP SPACE",
+          ][Math.min(3, engine.charge.tier)];
+    $("countdown").hidden = !(
+      engine.state === "countdown" || engine.elapsed < 0.6
+    );
+    $("countdown-number").textContent =
+      engine.state === "countdown" ? Math.ceil(engine.countdown) : "GO!";
+    $("countdown-label").textContent =
+      engine.state === "countdown" ? "READY" : "POWER CHARGE";
+    const beat =
+      engine.state === "countdown"
+        ? Math.ceil(engine.countdown) + 100
+        : engine.remaining;
+    if (
+      beat !== lastBeep &&
+      (engine.state === "countdown" || engine.remaining <= 10)
+    ) {
+      tone(engine.remaining <= 3 ? 850 : 600, 0.12);
+      lastBeep = beat;
+    }
+    $("last-seconds").hidden = !(
+      engine.state === "charge" && engine.remaining <= 10
+    );
+    $("last-seconds").textContent = engine.remaining;
+    $("last-seconds").classList.toggle("final", engine.remaining <= 3);
+  }
+  if (engine.state === "launch") {
+    const f = flightFrame(engine.charge.power, engine.launchTime);
+    $("launch-label").textContent =
+      f.phase === "complete"
+        ? "CHARGE COMPLETE"
+        : f.phase === "transfer"
+          ? "ENERGY TRANSFER..."
+          : f.phase === "countdown"
+            ? "LAUNCH SEQUENCE"
+            : f.phase === "ignition"
+              ? "IGNITION"
+              : "FLIGHT IN PROGRESS";
+    $("launch-power").textContent = Math.floor(
+      engine.charge.power,
+    ).toLocaleString("en-US");
+    $("ignition-count").textContent =
+      f.count || (f.phase === "ignition" ? "IGNITION" : "");
+    $("flight-caption").textContent =
+      f.progress > 0 ? "FLIGHT DISTANCE" : "ENERGY TRANSFER...";
+    $("flight-distance").replaceChildren(
+      document.createTextNode(f.distance.toLocaleString("en-US") + " "),
+    );
+    const unit = document.createElement("small");
+    unit.textContent = "km";
+    $("flight-distance").append(unit);
+    $("flight-destination").textContent =
+      f.progress > 0.96 ? f.target.name : "TARGET / " + f.target.name;
+    $("transfer-fill").style.width = `${(1 - f.transfer) * 100}%`;
+    const beat = f.count || (f.phase === "ignition" ? 200 : 0);
+    if (beat && beat !== lastBeep) {
+      tone(beat === 200 ? 100 : 500, beat === 200 ? 0.7 : 0.15);
+      lastBeep = beat;
+    }
+  }
+  scene.draw(engine, now / 1000, Math.min(dt, 0.05));
+  if (toastUntil && now > toastUntil) {
+    $("toast").hidden = true;
+    toastUntil = 0;
+  }
+  requestAnimationFrame(tick);
+}
+function renderRanking(id, rows, highlight = "") {
+  const list = $(id);
+  list.replaceChildren();
+  if (!rows.length) {
+    const item = document.createElement("li");
+    item.className = "empty-message";
+    item.textContent = "最初のミッションを記録しよう。";
+    list.append(item);
+    return;
+  }
+  for (let i = 0; i < 10; i++) {
+    const row = rows[i],
+      item = document.createElement("li"),
+      name = document.createElement("span"),
+      power = document.createElement("b");
+    if (row) {
+      name.textContent = row.name;
+      power.textContent = row.power.toLocaleString("en-US");
+      if (row.id === highlight) item.className = "current";
+    } else {
+      item.className = "empty";
+      name.textContent = "—";
+      power.textContent = "—";
+    }
+    item.append(name, power);
+    list.append(item);
+  }
+}
+function prepareResult() {
+  const target = destination(engine.charge.power);
+  missionId =
+    globalThis.crypto?.randomUUID?.() ||
+    String(Date.now()) + "-" + Math.random();
+  scoreSaved = false;
+  $("result-destination").textContent = target.name;
+  $("result-destination").classList.toggle("long", target.name.length > 12);
+  $("result-ja").textContent =
+    target.ja + (target.name === "BEYOND SOLAR SYSTEM" ? "！" : "に到達！");
+  $("result-power").textContent = Math.floor(
+    engine.charge.power,
+  ).toLocaleString("en-US");
+  $("result-rank").textContent = target.rank;
+  $("result-distance").textContent = target.distance.toLocaleString("en-US");
+  $("player-name").value = "";
+  $("player-name").disabled = false;
+  $("save-score").disabled = false;
+  $("skip-name").disabled = false;
+  $("save-message").textContent = "スキップすると「PLAYER」で記録します。";
+  renderRanking("result-ranks", readRanking(storage));
+  tone(1100, 0.4);
+}
+function record(name) {
+  if (scoreSaved || engine.state !== "result") return;
+  const result = saveScore(storage, {
+    id: missionId,
+    name,
+    power: engine.charge.power,
+  });
+  scoreSaved = true;
+  $("player-name").value = playerName(name);
+  $("player-name").disabled = true;
+  $("save-score").disabled = true;
+  $("skip-name").disabled = true;
+  $("save-message").textContent = result.saved
+    ? result.rank
+      ? `記録しました — LOCAL #${result.rank}`
+      : "記録完了。TOP10を目指してまた遊ぼう。"
+    : "このブラウザでは保存できませんでした。今回の結果は表示できます。";
+  renderRanking("result-ranks", result.rows, missionId);
+}
+$("score-form").onsubmit = (event) => {
+  event.preventDefault();
+  record($("player-name").value);
+};
+$("player-name").addEventListener("input", (event) => {
+  if (event.isComposing) return;
+  if (!$("player-name").value.trim()) return;
+  const selection = $("player-name").selectionStart;
+  const name = playerName($("player-name").value);
+  if (name !== $("player-name").value) {
+    $("player-name").value = name;
+    $("player-name").setSelectionRange(selection, selection);
+  }
+});
+$("skip-name").onclick = () => record("PLAYER");
+$("replay").onclick = start;
+$("result-home").onclick = home;
+$("show-ranking").onclick = () => {
+  renderRanking("title-ranks", readRanking(storage));
+  engine.state = "ranking";
+  showScreens();
+};
+$("ranking-back").onclick = home;
+$("start").onclick = start;
+$("retry").onclick = start;
+$("error-back").onclick = home;
+$("quit").onclick = home;
+$("upper-body").onclick = () => engine.allowUpperBody();
+$("exit").onclick = () => {
+  if (engine.state === "setup") home();
+  else if (engine.state === "paused") home();
+  else {
+    engine.pause();
+    showScreens();
+  }
+};
+$("resume").onclick = () => {
+  if (!quality.detected || performance.now() - lastPose > 350) {
+    toast("カメラに頭と上半身を映してね");
+    return;
+  }
+  movement.reset();
+  lastMotion = { valid: false, score: 0 };
+  engine.resume();
+  showScreens();
+};
+$("sound").onclick = () => {
+  sound = !sound;
+  $("sound").innerHTML = `SOUND <b>${sound ? "ON" : "OFF"}</b>`;
+  $("sound").setAttribute("aria-pressed", sound);
+  $("sound").setAttribute(
+    "aria-label",
+    `サウンドを${sound ? "オフ" : "オン"}にする`,
+  );
+  unlockAudio();
+  tone();
+};
+$("fullscreen").onclick = async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await $("game").requestFullscreen();
+  } catch {
+    toast("このブラウザでは全画面表示に対応していません。");
+  }
+};
+document.addEventListener("keydown", (event) => {
+  if (
+    event.key === "Escape" &&
+    ["charge", "countdown"].includes(engine.state)
+  ) {
+    engine.pause();
+    showScreens();
+  }
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    if (engine.state === "setup") home();
+    else engine.pause("hidden");
+    showScreens();
+  }
+  last = performance.now();
+});
+window.addEventListener("pagehide", () => {
+  generation++;
+  camera.stop();
+  tracker.close();
+  audio?.close();
+});
+showScreens();
 requestAnimationFrame(tick);

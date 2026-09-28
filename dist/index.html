@@ -1,7 +1,236 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101411"><title>MOTION POP — からだで、あそぼう。</title><meta name="description" content="カメラの前で手や体を動かしてターゲットをポップ。60秒の全身アクティビティゲーム。"><link rel="stylesheet" href="style.css"></head>
-<body><div class="app"><header><a class="brand" href="./" aria-label="MOTION POP ホーム"><span class="brand-icon">✳</span> MOTION<span>POP</span><small>PLAY WITH YOUR BODY</small></a><button id="sound" class="icon-button" aria-label="サウンドをオンにする">音 OFF</button></header>
-<main><div class="heading"><div><p class="eyebrow"><span></span> YOUR BODY IS THE CONTROLLER</p><h1>からだで、<span>あそぼう。</span></h1><p class="intro">手を伸ばして、タッチして。いつもの部屋がプレイフィールドに。</p></div><span class="session-tag">60 SEC <i>／</i> BODY PLAY</span></div>
-<div class="game-layout"><section class="play-panel" aria-label="ゲームエリア"><div class="game-top"><div><span class="live-dot" id="live-dot"></span><span id="camera-status">カメラ未接続</span></div><span id="mode-label">MOTION POP / 01</span></div><div class="arena" id="arena"><video id="video" autoplay playsinline muted></video><div class="grid"></div><div class="arena-corner tl"></div><div class="arena-corner tr"></div><div class="arena-corner bl"></div><div class="arena-corner br"></div><div class="demo-label" id="demo-label" hidden>おためしモード · ターゲットをクリック</div><div id="targets"></div><div class="center-screen" id="welcome"><div class="motion-symbol">✳</div><span class="pill">READY TO MOVE?</span><h2>あなたの動きが、<br>ゲームになる。</h2><p>カメラをつないで、画面のターゲットに<br>手や体を重ねて動かそう。</p><button class="primary" id="connect">カメラをつないで遊ぶ <span>↗</span></button><button class="text-button" id="demo">まずはカメラなしで試す →</button></div><div class="center-screen" id="overlay" hidden><p class="eyebrow" id="overlay-label">GET READY</p><h2 id="overlay-title">3</h2><p id="overlay-copy"></p><button class="primary" id="resume" hidden>つづける →</button><button class="primary" id="replay" hidden>もう一度遊ぶ ↗</button><button class="text-button" id="back" hidden>スタートに戻る</button></div><div class="arena-bottom"><span id="arena-hint">全身が映るように、カメラから少し離れてね</span><span>↔ MIRROR VIEW</span></div></div><div class="game-bottom"><span><span class="privacy-icon">◈</span> カメラ映像は保存・送信されません</span><button id="pause" disabled>Ⅱ 一時停止</button><button id="stop" hidden>終了</button></div><p id="error" role="alert" hidden></p></section>
-<aside><div class="score-card"><div class="card-label">YOUR SCORE <span>↗</span></div><div class="score"><span id="score">000</span><small>pt</small></div><div class="score-divider"></div><div class="time-row"><span>残り時間</span><strong><span id="time">60</span><small> sec</small></strong></div><div class="progress"><div id="progress"></div></div><div class="combo"><span>✦ コンボ</span><strong id="combo">× 0</strong></div></div><div class="settings"><div class="card-label">PLAY SETTINGS</div><label for="difficulty">難易度</label><div class="select-wrap"><select id="difficulty"><option value="easy">ゆったり</option><option value="normal" selected>ふつう</option><option value="hard">チャレンジ</option></select></div><p id="difficulty-copy">ちょうどいいペースで、全身を動かそう。</p><label for="sensitivity">動きの感度 <span id="sensitivity-label">標準</span></label><input type="range" id="sensitivity" min="15" max="65" value="35" aria-label="動きの感度"><div class="range-labels"><span>ひかえめ</span><span>敏感</span></div></div><div class="best-card"><span>♧ この端末のベスト</span><strong id="best">— <small>pt</small></strong></div></aside></div>
-<section class="how"><div class="how-title"><span class="eyebrow">HOW TO PLAY</span><h2>準備は、かんたん。</h2></div><div class="step"><span class="step-no">01</span><div><h3>カメラをオン</h3><p>カメラへのアクセスを許可して、<br>明るい場所でスタンバイ。</p></div></div><div class="step"><span class="step-no">02</span><div><h3>一歩さがって</h3><p>両手を広げられるスペースで、<br>自分の姿を画面に映そう。</p></div></div><div class="step"><span class="step-no">03</span><div><h3>ターゲットをポップ！</h3><p>丸に重ねて手や体を動かそう。<br>連続ヒットでスコアアップ。</p></div></div></section><footer><span>MOTION POP <span class="footer-star">✳</span> 少し動く。ちょっと楽しい。</span><span>自分のペースで、無理なく遊ぼう。</span></footer></main></div><script type="module" src="game.js"></script></body></html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#f1eee5" />
+    <meta
+      name="description"
+      content="カラダを動かして、ロケットにエネルギーを送れ！Webカメラで遊ぶ45秒の宇宙アーケードゲーム。"
+    />
+    <title>POWER CHARGE — BODY POWERED ROCKET</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main
+      id="game"
+      class="game"
+      data-state="title"
+      aria-label="POWER CHARGE ゲーム"
+    >
+      <canvas id="world" aria-hidden="true"></canvas>
+      <video id="camera" autoplay muted playsinline hidden></video>
+      <header class="masthead">
+        <a href="./" class="wordmark" aria-label="POWER CHARGE タイトルへ"
+          ><span class="brand-mark">ϟ</span> POWER CHARGE<span class="edition"
+            >BODY POWERED / 01</span
+          ></a
+        >
+        <div class="tools">
+          <button
+            id="sound"
+            aria-label="サウンドをオンにする"
+            aria-pressed="false"
+          >
+            SOUND <b>OFF</b></button
+          ><button id="fullscreen" aria-label="全画面表示">
+            全画面 <span>⛶</span></button
+          ><button id="exit" hidden>中断</button>
+        </div>
+      </header>
+      <section id="title" class="screen title-screen">
+        <div class="title-copy">
+          <p class="eyebrow"><i></i> HUMAN ENERGY. COSMIC POSSIBILITIES.</p>
+          <h1>POWER<br /><span>CHARGE</span><sup>↗</sup></h1>
+          <p class="tagline">
+            カラダを動かして、<br />ロケットにエネルギーを送れ！
+          </p>
+          <button id="start" class="primary start">
+            START <span>↗</span>
+          </button>
+          <div class="quick-rules">
+            <span><b>01</b> カラダを動かす</span
+            ><span><b>02</b> POWERを貯める</span
+            ><span><b>03</b> 宇宙へ飛ばす</span>
+          </div>
+        </div>
+        <div class="mission-label">
+          <span>LAUNCH VEHICLE</span><strong>PC—01</strong
+          ><span>DESTINATION : YOUR POTENTIAL</span>
+        </div>
+        <div class="title-bottom">
+          <span>45 SEC CHARGE <i>＋</i> ONE BIG LAUNCH</span
+          ><button id="show-ranking" class="link-button">
+            LOCAL TOP 10 ↗
+          </button>
+        </div>
+      </section>
+      <section id="setup" class="screen setup-screen" hidden>
+        <div class="setup-heading">
+          <p class="eyebrow">CONNECT YOUR ENERGY</p>
+          <h2 id="setup-title">CAMERA SETUP</h2>
+          <p id="setup-copy" role="status">
+            カメラへのアクセスを許可してください
+          </p>
+        </div>
+        <div class="setup-footer">
+          <div class="recognition">
+            <span id="recognition-label">LOOKING FOR PLAYER</span>
+            <div class="recognition-track"><i id="recognition-fill"></i></div>
+          </div>
+          <p>頭から膝が映る位置へ。両手を広げるスペースをあけてね。</p>
+          <button id="upper-body" class="secondary" hidden>
+            上半身でプレイする →
+          </button>
+        </div>
+      </section>
+      <section id="hud" class="screen hud" hidden>
+        <div class="time-block">
+          <span class="label">TIME</span><strong id="time">00:45</strong>
+        </div>
+        <div class="charge-heading">
+          <span class="live-pill">● ENERGY LINK ACTIVE</span>
+          <h2>MOVE. CHARGE. FLY.</h2>
+        </div>
+        <div class="combo-block">
+          <strong id="combo">0</strong><span class="label">COMBO</span
+          ><span id="multiplier">×1.00</span>
+        </div>
+        <div id="tracking-notice" class="tracking-notice" hidden>
+          カメラの中央に戻ってね
+        </div>
+        <div id="bonus" class="bonus" aria-live="polite"></div>
+        <div id="last-seconds" class="last-seconds" hidden></div>
+        <div class="movement-label">
+          <span id="motion-dot"></span>
+          <span id="motion-label">YOUR MOVEMENT → ENERGY</span>
+        </div>
+        <div class="power-panel">
+          <div class="power-heading">
+            <label for="power-meter">POWER</label><strong id="power">0</strong
+            ><span id="power-status">CHARGING SYSTEM</span>
+          </div>
+          <div
+            id="power-meter"
+            class="power-meter"
+            role="progressbar"
+            aria-label="POWER"
+            aria-valuemin="0"
+            aria-valuemax="9999"
+            aria-valuenow="0"
+          >
+            <div id="power-fill"></div>
+            <div class="meter-segments"></div>
+          </div>
+          <div class="power-scale">
+            <span>0</span><span>2,500</span><span>5,000</span><span>7,500</span
+            ><span>9,999</span>
+          </div>
+        </div>
+      </section>
+      <section id="countdown" class="screen countdown-screen" hidden>
+        <p id="countdown-label">READY</p>
+        <strong id="countdown-number">3</strong
+        ><span>腕を動かすだけでも、宇宙へ。</span>
+      </section>
+      <section id="launch" class="screen launch-screen" hidden>
+        <div class="launch-heading">
+          <p id="launch-label">CHARGE COMPLETE</p>
+          <h2 id="launch-heading">TOTAL POWER</h2>
+          <strong id="launch-power">0</strong>
+        </div>
+        <div id="ignition-count" class="ignition-count"></div>
+        <div class="launch-readout">
+          <span id="flight-caption">ENERGY TRANSFER...</span
+          ><strong id="flight-distance">0 <small>km</small></strong
+          ><span id="flight-destination">EARTH</span>
+        </div>
+        <div class="transfer-meter"><i id="transfer-fill"></i></div>
+      </section>
+      <section id="result" class="screen result-screen" hidden>
+        <div class="result-main">
+          <p class="eyebrow">MISSION RESULT</p>
+          <div class="result-destination">
+            <span>DESTINATION</span>
+            <h2 id="result-destination">MARS</h2>
+            <p id="result-ja">火星に到達！</p>
+          </div>
+          <div class="result-stats">
+            <div>
+              <span>TOTAL POWER</span><strong id="result-power">0</strong>
+            </div>
+            <div>
+              <span>MISSION RANK</span><strong id="result-rank">S</strong>
+            </div>
+          </div>
+          <div class="result-distance">
+            <span>FLIGHT DISTANCE</span><strong id="result-distance">0</strong
+            ><small>km</small>
+          </div>
+          <p class="score-note">飛距離・ランクはゲーム内の演出です。</p>
+          <form id="score-form">
+            <label for="player-name">パイロット名 <span>8文字まで</span></label>
+            <div class="name-row">
+              <input
+                id="player-name"
+                name="player-name"
+                autocomplete="off"
+                maxlength="40"
+                placeholder="PLAYER"
+                aria-describedby="save-message"
+              /><button id="save-score" type="submit" class="secondary">
+                記録する ↗</button
+              ><button id="skip-name" type="button" class="link-button">
+                スキップ
+              </button>
+            </div>
+            <p id="save-message" role="status">
+              スキップすると「PLAYER」で記録します。
+            </p>
+          </form>
+          <button id="replay" class="primary">
+            もう一度遊ぶ <span>↗</span></button
+          ><button id="result-home" class="link-button">タイトルへ</button>
+        </div>
+        <aside class="result-ranking">
+          <div class="ranking-heading">
+            <span>THIS STATION</span>
+            <h3>TOP 10 <span>↗</span></h3>
+          </div>
+          <ol id="result-ranks" class="rank-list"></ol>
+          <p>このブラウザ内の記録</p>
+        </aside>
+      </section>
+      <section id="ranking" class="screen ranking-screen" hidden>
+        <div>
+          <p class="eyebrow">THIS STATION / LOCAL RECORDS</p>
+          <h2>TOP 10</h2>
+          <ol id="title-ranks" class="rank-list"></ol>
+          <button id="ranking-back" class="primary">タイトルへ戻る →</button>
+        </div>
+      </section>
+      <section id="pause-screen" class="screen modal-screen" hidden>
+        <p class="eyebrow">TAKE YOUR TIME</p>
+        <h2>PAUSED</h2>
+        <p id="pause-copy">準備ができたら、つづけよう。</p>
+        <button id="resume" class="primary">つづける →</button
+        ><button id="quit" class="link-button">タイトルへ戻る</button>
+      </section>
+      <section id="error-screen" class="screen modal-screen" hidden>
+        <p class="eyebrow">CONNECTION CHECK</p>
+        <h2>接続を確認</h2>
+        <p id="error-copy" role="alert"></p>
+        <button id="retry" class="primary">もう一度つなぐ →</button
+        ><button id="error-back" class="link-button">タイトルへ戻る</button>
+      </section>
+      <div class="bottom-line">
+        <span><i></i> 映像は保存・送信されません</span
+        ><span>腕だけでもOK。自分のペースで。</span
+        ><span class="station-id">PC / LAUNCH STATION 001</span>
+      </div>
+      <div id="toast" class="toast" role="status" hidden></div>
+    </main>
+    <noscript>このゲームを遊ぶにはJavaScriptを有効にしてください。</noscript>
+    <script type="module" src="game.js"></script>
+  </body>
+</html>
