@@ -42,3 +42,12 @@ test("STEP 8: corrupt or disabled storage handled without blocking game", () => 
   assert.equal(saveScore(s, { id: "x", name: "P", power: 10 }).saved, false);
   assert.throws(() => saveScore(s, { id: "bad", name: "P", power: NaN }));
 });
+
+test('difficulty: new rule rankings do not mix or delete legacy scores',()=>{
+ const values=new Map([['power-charge.top10.v1',JSON.stringify([{id:'old',name:'OLD',power:9999,date:0}])]]);
+ const storage={getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)};
+ assert.deepEqual(readRanking(storage),[]);
+ saveScore(storage,{id:'new',name:'NEW',power:2000});
+ assert.equal(readRanking(storage)[0].power,2000);
+ assert.equal(JSON.parse(values.get('power-charge.top10.v1'))[0].power,9999);
+});

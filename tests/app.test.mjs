@@ -122,7 +122,7 @@ test("STEP 9: full app journey with synthetic camera/pose adapters", async () =>
         else {
           const p = pose(),
             t = data.timestamp / 1000;
-          const amplitude = poseMode === "moving" ? 0.085 : 0;
+          const amplitude = poseMode === "moving" ? 0.15 : 0;
           p[15].y += Math.sin(t * 5) * amplitude;
           p[16].y += Math.cos(t * 5) * amplitude;
           p[13].y += Math.sin(t * 5) * amplitude * 0.6;

@@ -34,13 +34,16 @@ export class BonusDetector {
       return true;
     };
     this.hand =
-      s[15] > 0.65 && s[16] > 0.65
+      s[15] > 0.65 && s[16] > 0.65 &&
+      s[13] > .3 && s[14] > .3 &&
+      (m.ranges?.[15] || 0) > .55 && (m.ranges?.[16] || 0) > .55 &&
+      (m.ranges?.[13] || 0) > .25 && (m.ranges?.[14] || 0) > .25
         ? this.hand + m.dt
         : Math.max(0, this.hand - m.dt * 2);
-    if (this.hand > 0.18 && emit("hand", "HAND BOOST", 50, 1.2)) this.hand = 0;
-    const arms = [13, 14, 15, 16].filter((i) => s[i] > 0.4).length >= 2;
-    const torso = [11, 12, 23, 24].some((i) => s[i] > 0.3);
-    const legs = [25, 26].some((i) => s[i] > 0.3);
+    if (this.hand > 0.22 && emit("hand", "HAND BOOST", 50, 1.8)) this.hand = 0;
+    const arms = [13, 14, 15, 16].filter((i) => s[i] > 0.4 && (m.ranges?.[i] || 0) > .25).length >= 2;
+    const torso = [11, 12, 23, 24].some((i) => s[i] > 0.3 && (m.ranges?.[i] || 0) > .2);
+    const legs = [25, 26].some((i) => s[i] > 0.3 && (m.ranges?.[i] || 0) > .2);
     this.full = arms && torso && legs ? this.full + m.dt : 0;
     if (this.full > 0.25 && emit("full", "FULL POWER!!", 0, 6)) this.full = 0;
     // Hip travel relative to feet rejects camera translation and changing camera angle.
@@ -50,7 +53,7 @@ export class BonusDetector {
       if (this.baseHip === null) this.baseHip = relative;
       if (!this.down) {
         this.baseHip = Math.min(this.baseHip + 0.01 * m.dt, relative);
-        if (relative - this.baseHip > 0.16) {
+        if (relative - this.baseHip > 0.32) {
           this.down = true;
           this.downAt = time;
           this.prepUntil = time + 1.5;
@@ -58,7 +61,7 @@ export class BonusDetector {
       } else if (time - this.downAt > 4) {
         this.down = false;
         this.baseHip = relative;
-      } else if (relative - this.baseHip < 0.055 && time - this.downAt > 0.15) {
+      } else if (relative - this.baseHip < 0.055 && time - this.downAt > 0.3) {
         emit("squat", "SQUAT BOOST", 100, 2);
         this.down = false;
         this.baseHip = relative;

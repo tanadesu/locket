@@ -7,7 +7,8 @@ const motion = (overrides = {}) => ({
   cameraShift: false,
   dt: 0.05,
   score: 6,
-  speeds: { 15: 1, 16: 1 },
+  speeds: { 13: 1, 14: 1, 15: 1, 16: 1 },
+  ranges: {13: .5, 14: .5, 15: .8, 16: .8, 23: .3, 25: .3},
   hipY: 0.55,
   shoulderY: 0.3,
   headY: 0.14,
@@ -30,7 +31,7 @@ test("STEP 6: hand boost requires both wrists and respects cooldown", () => {
 test("STEP 6: squat requires a down/up cycle; missing feet and camera motion rejected", () => {
   const d = new BonusDetector();
   d.update(motion(), 0);
-  for (let i = 1; i < 8; i++) d.update(motion({ hipY: 0.61 }), i * 0.05);
+  for (let i = 1; i < 8; i++) d.update(motion({ hipY: 0.65 }), i * 0.05);
   assert.ok(d.update(motion(), 0.5).some((e) => e.key === "squat"));
   assert.equal(d.update(motion(), 0.55).length, 0);
   d.reset();
@@ -75,7 +76,7 @@ test("STEP 6: jump requires preparation, coordinated rise and return", () => {
   d.update(motion({ speeds: {} }), 0);
   for (let i = 1; i <= 6; i++)
     d.update(
-      motion({ speeds: {}, hipY: 0.6, shoulderY: 0.35, headY: 0.19 }),
+      motion({ speeds: {}, hipY: 0.65, shoulderY: 0.4, headY: 0.24 }),
       i * 0.05,
     );
   for (let i = 7; i <= 12; i++)
@@ -111,4 +112,14 @@ test("STEP 6: jump requires preparation, coordinated rise and return", () => {
       d.update(motion({ speeds: {}, cameraShift: true }), i * 0.05).length,
       0,
     );
+});
+
+test('difficulty: fast small hand motions and shallow hip bobbing cannot farm boosts', () => {
+  const d = new BonusDetector();
+  let events=[];
+  for(let i=0;i<100;i++) events.push(...d.update(motion({
+    speeds: {13:2,14:2,15:4,16:4}, ranges: {13:.1,14:.1,15:.15,16:.15},
+    hipY: .55 + (1+Math.sin(i*.4))*.02,
+  }),i*.05));
+  assert.equal(events.length,0);
 });

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { GameEngine } from "../dist/lib/engine.mjs";
 const quality = { detected: true, knees: true };
-const motion = { valid: true, score: 3, cameraShift: false };
+const motion = { valid: true, score: 3, cameraShift: false, speeds: {13: 1.5, 14: 1.5, 15: 2, 16: 2}, ranges: {13: .7, 14: .7, 15: 1, 16: 1} };
 function ready() {
   const e = new GameEngine();
   e.setup();

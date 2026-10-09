@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Charge } from "../dist/lib/charge.mjs";
-const motion = { valid: true, score: 4, cameraShift: false };
+const motion = { valid: true, score: 4, cameraShift: false, speeds: {13: 1.5, 14: 1.5, 15: 2, 16: 2}, ranges: {13: .7, 14: .7, 15: 1, 16: 1} };
 test("STEP 4: power responds immediately, caps at 9999, and sets effect tiers", () => {
   const charge = new Charge();
   charge.step(motion, 0.05, 0);

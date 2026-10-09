@@ -19,6 +19,7 @@ export class MovementTracker {
     this.previous = null;
     this.time = 0;
     this.scale = 0;
+    this.history = [];
   }
   update(points, timestamp) {
     if (!poseQuality(points).detected) {
@@ -35,6 +36,7 @@ export class MovementTracker {
       dt > 0.3 ||
       Math.abs(scale / this.scale - 1) > 0.12
     ) {
+      this.history = [];
       this.previous = points.map((p) => ({ ...p }));
       this.time = timestamp;
       this.scale = scale;
@@ -73,13 +75,25 @@ export class MovementTracker {
     for (const d of deltas) {
       const displacement = Math.hypot(d.x, d.y) / scale;
       const speed =
-        cameraShift || displacement < 0.012
+        cameraShift || displacement < 0.006
           ? 0
-          : Math.min(4, (displacement - 0.012) / dt);
+          : Math.min(4, Math.max(0, displacement / dt - 0.2));
       speeds[d.i] = speed;
       score += speed;
     }
+    // Recent range, not accumulated path length: fast tiny shaking stays low-value.
+    if (cameraShift) this.history = [];
+    else this.history.push({ time: timestamp, points: smooth });
+    this.history = this.history.filter(frame => timestamp - frame.time <= 650);
+    const ranges = {};
+    for (const i of MOTION_JOINTS) {
+      const samples = this.history.map(frame => frame.points[i]);
+      if (samples.length < 2 || !samples.every(visible)) { ranges[i] = 0; continue; }
+      const xs = samples.map(p => p.x), ys = samples.map(p => p.y);
+      ranges[i] = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / scale;
+    }
     const result = {
+      ranges,
       valid: true,
       score,
       intensity: Math.min(1, score / 8),
