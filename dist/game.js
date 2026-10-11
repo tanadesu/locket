@@ -142,14 +142,13 @@ tracker.onPose = (points, timestamp) => {
       scene.emit(lastMotion.points, lastMotion.intensity, lastMotion.speeds);
     const events = bonuses.update(lastMotion, engine.elapsed);
     for (const event of events) {
-      if (event.key === "full") engine.charge.fullUntil = engine.elapsed + 3;
-      else engine.charge.add(event.points);
+      engine.charge.applyBonus(event, engine.elapsed);
       $("bonus").replaceChildren(document.createTextNode(event.label));
       const detail = document.createElement("small");
       detail.textContent =
-        event.key === "full" ? "3 SEC ×1.5" : `+${event.points}`;
+        event.key === "full" ? "3 SEC ×1.5" : event.duration ? `+${event.points} / ${event.duration} SEC ×${event.multiplier}` : `+${event.points}`;
       $("bonus").append(detail);
-      bonusUntil = performance.now() + (event.key === "full" ? 3000 : 1100);
+      bonusUntil = performance.now() + (event.key === "full" ? 3000 : event.duration ? event.duration * 1000 : 1100);
       tone(event.key === "full" ? 1100 : 750, 0.16);
     }
   }
@@ -246,7 +245,7 @@ function tick(now) {
     );
     $("game").style.setProperty("--energy", engine.charge.fraction);
     $("multiplier").textContent =
-      `×${((1 + Math.min(engine.charge.combo, 40) * 0.01) * (engine.elapsed < engine.charge.fullUntil ? 1.5 : 1)).toFixed(2)}`;
+      `×${((1 + Math.min(engine.charge.combo, 40) * 0.01) * engine.charge.getBoost(engine.elapsed).multiplier).toFixed(2)}`;
     $("bonus").style.opacity = now < bonusUntil ? "1" : "0";
     $("tracking-notice").hidden = q.detected || engine.state !== "charge";
     $("motion-dot").parentElement.classList.toggle(
@@ -256,8 +255,8 @@ function tick(now) {
     $("power-status").textContent =
       engine.charge.power >= 9500
         ? "POWER OVERLOAD!!"
-        : engine.elapsed < engine.charge.fullUntil
-          ? "FULL POWER ×1.5"
+        : engine.charge.getBoost(engine.elapsed).multiplier > 1
+          ? `${engine.charge.getBoost(engine.elapsed).label} ×${engine.charge.getBoost(engine.elapsed).multiplier}`
           : [
             "CHARGING SYSTEM",
             "ENERGY RISING",

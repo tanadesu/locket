@@ -7,6 +7,7 @@ import { pose } from './fixtures.mjs';
 function play(kind, fps=20) {
   const tracker = new MovementTracker(), charge = new Charge(), bonuses = new BonusDetector();
   const counts = {};
+  let maxAt = Infinity;
   for(let i=0;i<45*fps;i++) {
     const t=i/fps, p=pose();
     const amplitude = kind==='tiny'? .025 : kind==='arms'? .12 : .23;
@@ -18,17 +19,18 @@ function play(kind, fps=20) {
     charge.step(motion,1/fps,t);
     for(const event of bonuses.update(motion,t)) {
       counts[event.key]=(counts[event.key]||0)+1;
-      if(event.key==='full') charge.fullUntil=t+3;else charge.add(event.points);
+      charge.applyBonus(event,t);
     }
+    if(charge.power>=9999 && maxAt===Infinity)maxAt=t;
   }
-  return {power:Math.floor(charge.power),counts};
+  return {power:Math.floor(charge.power),counts,maxAt};
 }
 test('difficulty: fast tiny wrist shaking earns far less than broad arms and whole-body motion',()=>{
  const tiny=play('tiny'), arms=play('arms'), broad=play('broad'), whole=play('whole');
  console.log({tiny,arms,broad,whole});
  assert.ok(tiny.power<1000);assert.equal(tiny.counts.hand,undefined);assert.equal(tiny.counts.full,undefined);
  assert.ok(arms.power>tiny.power*3);assert.ok(arms.power<5000);
- assert.ok(broad.power>arms.power*1.5);assert.ok(whole.power>broad.power);
+ assert.ok(broad.power>arms.power*1.5);assert.ok(whole.maxAt<broad.maxAt);
  assert.ok(broad.power>3000,'upper-body play stays viable without jumping');
 });
 test('difficulty: scores remain comparable at 15, 20 and 30 pose frames per second',()=>{

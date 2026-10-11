@@ -67,9 +67,13 @@ export class MovementTracker {
       (d) =>
         Math.hypot(d.x - dx, d.y - dy) < Math.max(0.002, translation * 0.2),
     ).length;
+    // A squat moves the torso while feet stay planted. Do not mistake it for camera shake.
+    const feetVisible = [27, 28].every(i => visible(points[i]) && visible(this.previous[i]));
+    const feetFollow = feetVisible && [27, 28].every(i =>
+      Math.hypot(smooth[i].x - this.previous[i].x - dx, smooth[i].y - this.previous[i].y - dy) < Math.max(.002, translation * .3));
     const cameraShift =
       translation > scale * 0.014 &&
-      coherent >= Math.max(6, deltas.length * 0.85);
+      coherent >= Math.max(6, deltas.length * 0.85) && (!feetVisible || feetFollow);
     const speeds = {};
     let score = 0;
     for (const d of deltas) {

@@ -31,7 +31,7 @@ test("STEP 6: hand boost requires both wrists and respects cooldown", () => {
 test("STEP 6: squat requires a down/up cycle; missing feet and camera motion rejected", () => {
   const d = new BonusDetector();
   d.update(motion(), 0);
-  for (let i = 1; i < 8; i++) d.update(motion({ hipY: 0.65 }), i * 0.05);
+  for (let i = 1; i < 8; i++) d.update(motion({ hipY: 0.65, shoulderY: 0.4 }), i * 0.05);
   assert.ok(d.update(motion(), 0.5).some((e) => e.key === "squat"));
   assert.equal(d.update(motion(), 0.55).length, 0);
   d.reset();

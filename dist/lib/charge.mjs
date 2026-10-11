@@ -22,9 +22,24 @@ export class Charge {
     this.activeTime = 0;
     this.idle = 0;
     this.fullUntil = 0;
+    this.boosts = {};
   }
   add(value) {
     this.power = Math.min(MAX_POWER, Math.max(0, this.power + value));
+  }
+  applyBonus(event, time) {
+    this.add(event.points);
+    if (event.key === "full") this.fullUntil = time + 3;
+    if (event.multiplier > 1 && event.duration > 0) {
+      this.boosts[event.key] = { label: event.label, multiplier: event.multiplier, until: time + event.duration };
+    }
+  }
+  getBoost(time) {
+    let best = time < this.fullUntil ? { label: "FULL POWER", multiplier: 1.5 } : { label: "", multiplier: 1 };
+    for (const boost of Object.values(this.boosts)) {
+      if (time < boost.until && boost.multiplier > best.multiplier) best = boost;
+    }
+    return best;
   }
   step(motion, dt, time) {
     const rate = motionRate(motion);
@@ -34,7 +49,7 @@ export class Charge {
       this.activeTime += dt;
       this.combo = Math.floor(this.activeTime / 0.5);
       const comboMultiplier = 1 + Math.min(this.combo, 40) * 0.01;
-      const fullMultiplier = time < this.fullUntil ? 1.5 : 1;
+      const fullMultiplier = this.getBoost(time).multiplier;
       // No flat participation points: bigger, coordinated movements earn more.
       this.add(
         rate *
