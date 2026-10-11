@@ -135,7 +135,21 @@ test("STEP 9: full app journey with synthetic camera/pose adapters", async () =>
     }
     terminate() {}
   };
+  let musicPlays = 0;
+  globalThis.Audio = class {
+    play() { musicPlays++; return Promise.resolve(); }
+    pause() {}
+  };
   await import("../dist/game.js");
+  assert.equal(musicPlays, 0, "No autoplay before a user gesture");
+  handlers.click();
+  assert.equal(musicPlays, 1, "Sound defaults on at first interaction");
+  nodes.sound.onclick();
+  assert.equal(nodes.sound.attributes["aria-pressed"], false);
+  handlers.click();
+  assert.equal(musicPlays, 1, "A muted click must not restart music");
+  nodes.sound.onclick();
+  assert.equal(musicPlays, 2, "Sound can be enabled again");
   async function frames(n) {
     for (let i = 0; i < n; i++) {
       now += 1000 / 60;

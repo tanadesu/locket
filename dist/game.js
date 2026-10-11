@@ -36,7 +36,8 @@ let generation = 0,
   quality = { detected: false, knees: false },
   previousState = "title",
   torsoStable = 0,
-  sound = false,
+  sound = true,
+  audioActivated = false,
   audio = null,
   lastBeep = -1,
   toastUntil = 0;
@@ -54,7 +55,7 @@ const screens = [
 const bgm = new Bgm(storage, undefined, () => toast("BGMを再生できません。SOUNDを入れ直してください。"));
 $("bgm-mode").value = bgm.mode;
 function syncBgm() {
-  bgm.sync(sound, document.hidden || ["paused", "error"].includes(engine.state));
+  bgm.sync(sound && audioActivated, document.hidden || ["paused", "error"].includes(engine.state));
 }
 function showScreens() {
   syncBgm();
@@ -168,10 +169,12 @@ camera.onDisconnect = () =>
   fail("カメラの接続が切れました。接続を確認して、もう一度お試しください。");
 function unlockAudio() {
   if (!sound) return;
+  audioActivated = true;
   try {
     audio ??= new (window.AudioContext || window.webkitAudioContext)();
     audio.resume();
   } catch {}
+  syncBgm();
 }
 function tone(frequency = 600, duration = 0.1) {
   if (!sound || !audio) return;
@@ -466,8 +469,10 @@ $("sound").onclick = () => {
 $("bgm-mode").onchange = () => {
   bgm.select($("bgm-mode").value);
   if (!sound) $("sound").onclick();
-  else syncBgm();
+  else unlockAudio();
 };
+// Click also covers keyboard activation of buttons; avoid autoplay before a gesture.
+document.addEventListener("click", unlockAudio);
 $("fullscreen").onclick = async () => {
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
