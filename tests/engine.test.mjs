@@ -40,8 +40,31 @@ test("STEP 5: tracking loss and manual pause freeze timer and scoring", () => {
   assert.equal(e.elapsed, 0);
   assert.equal(e.charge.power, score);
   e.resume();
-  for (let i = 0; i < 21; i++)
+  for (let i = 0; i < 51; i++)
     e.step(0.1, { valid: false, score: 0 }, { detected: false });
   assert.equal(e.state, "paused");
   assert.equal(e.pauseReason, "tracking");
+  assert.ok(Math.abs(e.elapsed - 5) < 1e-8);
+  e.step(20, motion, { detected: false });
+  assert.ok(Math.abs(e.elapsed - 5) < 1e-8);
+  assert.equal(e.charge.power, score);
+  e.step(0.1, motion, quality);
+  assert.equal(e.state, "charge");
+  e.step(0.1, motion, quality);
+  assert.ok(e.elapsed > 5);
+});
+test("tracking grace resets on recovery; hidden pause never auto-resumes", () => {
+  const e = ready();
+  e.step(4.9, motion, { detected: false });
+  assert.equal(e.state, "charge");
+  assert.equal(e.charge.power, 0);
+  e.step(0.1, motion, quality);
+  e.step(4.9, motion, { detected: false });
+  assert.equal(e.state, "charge");
+  e.step(0.2, motion, { detected: false });
+  assert.equal(e.state, "paused");
+  e.pause("hidden");
+  e.step(1, motion, quality);
+  assert.equal(e.state, "paused");
+  assert.equal(e.pauseReason, "hidden");
 });

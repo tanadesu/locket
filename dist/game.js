@@ -55,7 +55,7 @@ const screens = [
 const bgm = new Bgm(storage, undefined, () => toast("BGMを再生できません。SOUNDを入れ直してください。"));
 $("bgm-mode").value = bgm.mode;
 function syncBgm() {
-  bgm.sync(sound && audioActivated, document.hidden || ["paused", "error"].includes(engine.state));
+  bgm.sync(sound && audioActivated, document.hidden || engine.state === "error" || (engine.state === "paused" && engine.pauseReason !== "tracking"));
 }
 function showScreens() {
   syncBgm();
@@ -66,10 +66,10 @@ function showScreens() {
   if (state === "launch") $("launch").hidden = false;
   if (state === "title") $("title").hidden = false;
   if (state === "setup") $("setup").hidden = false;
-  if (["charge", "countdown"].includes(state)) $("hud").hidden = false;
+  if (["charge", "countdown"].includes(state) || (state === "paused" && engine.pauseReason === "tracking")) $("hud").hidden = false;
   if (state === "countdown" || (state === "charge" && engine.elapsed < 0.6))
     $("countdown").hidden = false;
-  if (state === "paused") {
+  if (state === "paused" && engine.pauseReason !== "tracking") {
     $("pause-screen").hidden = false;
     $("pause-copy").textContent =
       engine.pauseReason === "tracking"
@@ -242,7 +242,7 @@ function tick(now) {
       `${Math.min(100, (engine.stable / 1.5) * 100)}%`;
     $("upper-body").hidden = !(torsoStable > 1.5 && !q.knees);
   }
-  if (["charge", "countdown"].includes(engine.state)) {
+  if (["charge", "countdown"].includes(engine.state) || (engine.state === "paused" && engine.pauseReason === "tracking")) {
     $("time").textContent = `00:${String(engine.remaining).padStart(2, "0")}`;
     $("power").textContent = Math.floor(engine.charge.power).toLocaleString(
       "en-US",
@@ -257,7 +257,10 @@ function tick(now) {
     $("multiplier").textContent =
       `×${((1 + Math.min(engine.charge.combo, 40) * 0.01) * engine.charge.getBoost(engine.elapsed).multiplier).toFixed(2)}`;
     $("bonus").style.opacity = now < bonusUntil ? "1" : "0";
-    $("tracking-notice").hidden = q.detected || engine.state !== "charge";
+    $("tracking-notice").hidden = q.detected || engine.state === "countdown";
+    $("tracking-notice").textContent = engine.state === "paused"
+      ? "タイマー停止中 — カメラに戻ると自動で再開"
+      : "カメラに映ってね — 5秒見失うとタイマー停止";
     $("motion-dot").parentElement.classList.toggle(
       "active",
       motion.score > 0.65,

@@ -127,6 +127,7 @@ test("STEP 9: full app journey with synthetic camera/pose adapters", async () =>
           p[16].y += Math.cos(t * 5) * amplitude;
           p[13].y += Math.sin(t * 5) * amplitude * 0.6;
           p[14].y += Math.cos(t * 5) * amplitude * 0.6;
+          if (poseMode === "missing") p.forEach(point => { point.visibility = 0; });
           this.onmessage({
             data: { type: "pose", points: p, timestamp: data.timestamp },
           });
@@ -196,7 +197,24 @@ test("STEP 9: full app journey with synthetic camera/pose adapters", async () =>
   assert.equal(JSON.parse([...storage.values()][0]).length, 1);
   await nodes.replay.onclick();
   assert.equal(nodes.game.dataset.state, "setup");
+  await frames(290);
+  poseMode = "missing";
+  await frames(240);
+  assert.equal(nodes.game.dataset.state, "charge", "Tracking grace lasts more than 4 seconds");
+  await frames(100);
+  assert.equal(nodes.game.dataset.state, "paused");
+  assert.equal(nodes["pause-screen"].hidden, true, "No modal obscures the camera");
+  assert.equal(nodes.hud.hidden, false);
+  assert.ok(nodes.camera.srcObject, "Camera stream stays connected");
+  const trackingTime = nodes.time.textContent;
+  await frames(120);
+  assert.equal(nodes.time.textContent, trackingTime);
+  poseMode = "moving";
+  await frames(30);
+  assert.equal(nodes.game.dataset.state, "charge", "Tracking recovery resumes automatically");
+  assert.equal(nodes["tracking-notice"].hidden, true);
   nodes.exit.onclick();
+  nodes.quit.onclick();
   assert.equal(nodes.game.dataset.state, "title");
   handlers.pagehide();
 });

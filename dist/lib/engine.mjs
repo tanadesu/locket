@@ -24,6 +24,10 @@ export class GameEngine {
     this.upperBody = true;
   }
   pause(reason = "manual") {
+    if (this.state === "paused" && this.pauseReason === "tracking") {
+      this.pauseReason = reason;
+      return;
+    }
     if (!["charge", "countdown"].includes(this.state)) return;
     this.pausedFrom = this.state;
     this.state = "paused";
@@ -61,18 +65,18 @@ export class GameEngine {
         this.elapsed = 0;
       }
     } else if (this.state === "charge") {
+      const previousLost = this.lost;
       this.lost = quality.detected ? 0 : this.lost + dt;
-      if (this.lost >= 2) {
-        this.pause("tracking");
-        return;
-      }
-      const activeDt = Math.min(dt, CHARGE_SECONDS - this.elapsed);
-      this.charge.step(motion, Math.min(activeDt, 0.15), this.elapsed);
+      const activeDt = Math.min(dt, CHARGE_SECONDS - this.elapsed,
+        quality.detected ? dt : Math.max(0, 5 - previousLost));
+      this.charge.step(quality.detected ? motion : { valid: false, score: 0 }, Math.min(activeDt, 0.15), this.elapsed);
       this.elapsed = Math.min(CHARGE_SECONDS, this.elapsed + activeDt);
       if (this.elapsed >= CHARGE_SECONDS) {
         this.state = "launch";
         this.launchTime = 0;
-      }
+      } else if (this.lost >= 5) this.pause("tracking");
+    } else if (this.state === "paused" && this.pauseReason === "tracking") {
+      if (quality.detected) this.resume();
     } else if (this.state === "launch") {
       this.launchTime += dt;
       if (this.launchTime >= 10) this.state = "result";
