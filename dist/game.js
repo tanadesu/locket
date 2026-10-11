@@ -6,6 +6,7 @@ import { Scene } from "./lib/scene.mjs";
 import { readRanking, saveScore, playerName } from "./lib/ranking.mjs";
 import { flightFrame, destination } from "./lib/flight.mjs";
 import { BonusDetector } from "./lib/bonuses.mjs";
+import { Bgm } from "./lib/bgm.mjs";
 const $ = (id) => document.getElementById(id);
 const bonuses = new BonusDetector();
 let bonusUntil = 0,
@@ -50,7 +51,13 @@ const screens = [
   "result",
   "ranking",
 ];
+const bgm = new Bgm(storage, undefined, () => toast("BGMを再生できません。SOUNDを入れ直してください。"));
+$("bgm-mode").value = bgm.mode;
+function syncBgm() {
+  bgm.sync(sound, document.hidden || ["paused", "error"].includes(engine.state));
+}
 function showScreens() {
+  syncBgm();
   const state = engine.state;
   for (const id of screens) $(id).hidden = true;
   if (state === "result") $("result").hidden = false;
@@ -454,6 +461,12 @@ $("sound").onclick = () => {
   );
   unlockAudio();
   tone();
+  syncBgm();
+};
+$("bgm-mode").onchange = () => {
+  bgm.select($("bgm-mode").value);
+  if (!sound) $("sound").onclick();
+  else syncBgm();
 };
 $("fullscreen").onclick = async () => {
   try {
@@ -479,12 +492,14 @@ document.addEventListener("visibilitychange", () => {
     showScreens();
   }
   last = performance.now();
+  syncBgm();
 });
 window.addEventListener("pagehide", () => {
   generation++;
   camera.stop();
   tracker.close();
   audio?.close();
+  bgm.sync(false);
 });
 showScreens();
 requestAnimationFrame(tick);
