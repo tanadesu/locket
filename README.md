@@ -21,6 +21,14 @@ python3 -m http.server 4174 --bind 127.0.0.1 --directory dist
 
 `index.html`を直接開く `file://` では、カメラとWeb Workerが動作しません。別の端末へ配信する場合はHTTPSが必要です。`dist/` 全体を静的ホスティングに配置できます。MediaPipeの `.wasm` / `.mjs` / `.task` も含めてください。
 
+## Vercelで公開
+
+公開URL: https://power-charge.vercel.app
+
+`vercel.json` に静的配信の設定を用意しています。GitHubの `tanadesu/locket` をVercelへインポートする場合、Framework PresetはOther、公開ディレクトリは `dist`、ビルド・インストールコマンドは空欄です。CLIからはリポジトリ直下で `npx vercel --prod` を実行できます。
+
+URLが変わるとカメラの許可は再度必要です。ランキングはURLごとのブラウザ保存なので、旧URLの記録は自動移行されません。
+
 ## 会場での使い方
 
 - PC＋Webカメラ＋16:9のモニターを基本としています。全画面ボタンで拡大できます。
