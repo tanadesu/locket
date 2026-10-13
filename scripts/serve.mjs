@@ -2,6 +2,10 @@ import http from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve, extname, sep } from "node:path";
+// Node 20.12+ supports loadEnvFile; optional for game-only operation.
+try { process.loadEnvFile?.(".env.local"); } catch (error) { if (error.code !== "ENOENT") throw Error("Cannot load local environment"); }
+const { apiHandler } = await import("../server/rewards.mjs");
+const startSession = apiHandler("start"), reward = apiHandler("reward");
 const root = fileURLToPath(new URL("../dist/", import.meta.url));
 const port = Number(process.env.POWER_CHARGE_PORT || 4174);
 const types = {
@@ -15,6 +19,9 @@ const types = {
   ".md": "text/plain; charset=utf-8",
 };
 const server = http.createServer(async (req, res) => {
+  const pathname = new URL(req.url, "http://localhost").pathname;
+  if (pathname === "/api/session/start") return startSession(req, res);
+  if (pathname === "/api/reward") return reward(req, res);
   try {
     if (!["GET", "HEAD"].includes(req.method)) {
       res.writeHead(405);

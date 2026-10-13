@@ -8,6 +8,8 @@ const source = readFileSync("dist/game.js", "utf8");
 for (const [, id] of source.matchAll(/\$\(['"]([^'"]+)['"]\)/g))
   if (!ids.includes(id)) throw Error("Missing element: " + id);
 const scripts = [
+  "api/reward.js", "api/session/start.js", "scripts/serve.mjs",
+  ...readdirSync("server").filter(f => f.endsWith(".mjs")).map(f => "server/" + f),
   "dist/game.js",
   ...readdirSync("dist/lib")
     .filter((f) => /\.(mjs|js)$/.test(f))

@@ -3,3 +3,8 @@ node_modules/
 *.log
 .vercel/
 .vercel
+.env
+.env.*
+!.env.example
+# Shared operating documents are local only, not authorized for publication.
+docs/

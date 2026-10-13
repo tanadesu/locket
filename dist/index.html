@@ -201,12 +201,23 @@
           ><button id="result-home" class="link-button">タイトルへ</button>
         </div>
         <aside class="result-ranking">
+          <section class="reward-panel" aria-label="ユニコイン獲得">
+            <p class="eyebrow">ZERO ARCADE</p>
+            <p class="reward-total"><strong id="reward-coins">—</strong> ユニコイン</p>
+            <p id="reward-message" role="status">ユニコインを確認しています…</p>
+            <img id="reward-qr" alt="ユニコイン獲得QR。ZERO ARCADEのウォレットでスキャンしてください" hidden />
+            <p id="reward-expires"></p>
+            <button id="reward-retry" class="secondary" hidden>QRを再試行</button>
+          </section>
+          <details class="result-local-ranking">
+            <summary>この端末の TOP 10</summary>
           <div class="ranking-heading">
             <span>THIS STATION</span>
             <h3>TOP 10 <span>↗</span></h3>
           </div>
           <ol id="result-ranks" class="rank-list"></ol>
           <p>新ルールの記録 / このブラウザ内</p>
+          </details>
         </aside>
       </section>
       <section id="ranking" class="screen ranking-screen" hidden>

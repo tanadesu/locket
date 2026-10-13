@@ -46,6 +46,7 @@ test("STEP 9: full app journey with synthetic camera/pose adapters", async () =>
     setAttribute(k, v) {
       this.attributes[k] = v;
     },
+    removeAttribute(k) { delete this.attributes[k]; },
     append(...c) {
       this.children.push(...c);
     },
@@ -137,6 +138,7 @@ test("STEP 9: full app journey with synthetic camera/pose adapters", async () =>
     terminate() {}
   };
   let musicPlays = 0;
+  globalThis.fetch = async () => ({ ok: false, json: async () => ({ error: "NOT_CONFIGURED" }) });
   globalThis.Audio = class {
     play() { musicPlays++; return Promise.resolve(); }
     pause() {}
@@ -186,6 +188,8 @@ test("STEP 9: full app journey with synthetic camera/pose adapters", async () =>
   await frames(650);
   assert.equal(nodes.game.dataset.state, "result");
   assert.equal(nodes.result.hidden, false);
+  assert.equal(nodes["reward-qr"].hidden, true);
+  assert.match(nodes["reward-message"].textContent, /設定待ち/);
   assert.ok(
     Number(nodes["result-power"].textContent.replaceAll(",", "")) > 1000,
   );
@@ -216,5 +220,19 @@ test("STEP 9: full app journey with synthetic camera/pose adapters", async () =>
   nodes.exit.onclick();
   nodes.quit.onclick();
   assert.equal(nodes.game.dataset.state, "title");
+  let issuedCoins = 3000;
+  globalThis.fetch = async url => ({ ok: true, json: async () => url.endsWith("start")
+    ? { sessionId: "a".repeat(64) }
+    : { coins: issuedCoins, qrImageDataUrl: "data:image/png;base64,aGVsbG8=", expiresAt: Math.floor(Date.now() / 1000) + 86400 } });
+  for (const coins of [3000, 0]) {
+    issuedCoins = coins;
+    await nodes.start.onclick();
+    await frames(3800);
+    assert.equal(nodes.game.dataset.state, "result");
+    assert.equal(nodes["reward-coins"].textContent, coins.toLocaleString("ja-JP"));
+    assert.equal(nodes["reward-qr"].hidden, coins === 0);
+    if (coins > 0) assert.match(nodes["reward-qr"].src, /^data:image\/png;base64,/);
+    nodes["result-home"].onclick();
+  }
   handlers.pagehide();
 });

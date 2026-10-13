@@ -7,6 +7,7 @@ import { readRanking, saveScore, playerName } from "./lib/ranking.mjs";
 import { flightFrame, destination } from "./lib/flight.mjs";
 import { BonusDetector } from "./lib/bonuses.mjs";
 import { Bgm } from "./lib/bgm.mjs";
+import { RewardClient } from "./lib/reward-client.mjs";
 const $ = (id) => document.getElementById(id);
 const bonuses = new BonusDetector();
 let bonusUntil = 0,
@@ -53,6 +54,9 @@ const screens = [
   "ranking",
 ];
 const bgm = new Bgm(storage, undefined, () => toast("BGMを再生できません。SOUNDを入れ直してください。"));
+let rewardStorage;
+try { rewardStorage = window.sessionStorage; } catch {}
+const rewards = new RewardClient({ storage: rewardStorage, onChange: renderReward });
 $("bgm-mode").value = bgm.mode;
 function syncBgm() {
   bgm.sync(sound && audioActivated, document.hidden || engine.state === "error" || (engine.state === "paused" && engine.pauseReason !== "tracking"));
@@ -92,6 +96,7 @@ function clearTracking() {
   torsoStable = 0;
 }
 function home() {
+  rewards.clear();
   generation++;
   camera.stop();
   tracker.close();
@@ -111,6 +116,7 @@ function fail(message) {
   showScreens();
 }
 async function start() {
+  rewards.begin();
   const token = ++generation;
   engine.setup();
   clearTracking();
@@ -369,9 +375,36 @@ function renderRanking(id, rows, highlight = "") {
     list.append(item);
   }
 }
-function prepareResult() {
+function renderReward(result) {
+  $("reward-qr").hidden = true;
+  $("reward-qr").removeAttribute("src");
+  $("reward-coins").textContent = "—";
+  $("reward-expires").textContent = "";
+  $("reward-retry").hidden = true;
+  $("reward-retry").disabled = result.status === "loading";
+  if (result.status === "loading") $("reward-message").textContent = "ユニコインを確認しています…";
+  else if (result.status === "error") {
+    $("reward-message").textContent = result.message;
+    $("reward-retry").hidden = !result.retryable;
+  } else {
+    $("reward-coins").textContent = result.coins.toLocaleString("ja-JP");
+    const expired = result.coins > 0 && result.expiresAt * 1000 <= Date.now();
+    $("reward-message").textContent = result.coins === 0 ? "今回は0枚です。QRは発行されません。"
+      : expired ? "このQRの有効期限は終了しました。" : "ZERO ARCADEのウォレット → スキャンで受け取る";
+    if (result.coins > 0) {
+      $("reward-expires").textContent = `有効期限：${new Date(result.expiresAt * 1000).toLocaleString("ja-JP")}`;
+      if (!expired) {
+        $("reward-qr").src = result.qrImageDataUrl;
+        $("reward-qr").hidden = false;
+      }
+    }
+  }
+}
+$("reward-retry").onclick = () => rewards.retry();
+$("reward-qr").onerror = () => renderReward({ status: "error", message: "QR画像を表示できませんでした。再試行してください。", retryable: true });
+function prepareResult(restored = false) {
   const target = destination(engine.charge.power);
-  missionId =
+  missionId = restored ? rewards.snapshot.missionId :
     globalThis.crypto?.randomUUID?.() ||
     String(Date.now()) + "-" + Math.random();
   scoreSaved = false;
@@ -391,6 +424,7 @@ function prepareResult() {
   $("save-message").textContent = "スキップすると「PLAYER」で記録します。";
   renderRanking("result-ranks", readRanking(storage));
   tone(1100, 0.4);
+  rewards.finish(Math.floor(engine.charge.power), missionId);
 }
 function record(name) {
   if (scoreSaved || engine.state !== "result") return;
@@ -509,5 +543,12 @@ window.addEventListener("pagehide", () => {
   audio?.close();
   bgm.sync(false);
 });
+const restoredReward = rewards.restore();
+if (restoredReward) {
+  engine.charge.power = restoredReward.points;
+  engine.state = "result";
+  previousState = "result";
+  prepareResult(true);
+}
 showScreens();
 requestAnimationFrame(tick);

@@ -968,6 +968,15 @@ h1 sup {
   color: #ffc080;
   margin: 0 0 1.1em;
 }
+.result-ranking { overflow-y: auto; min-height: 0; }
+.reward-panel { text-align: center; padding: 0.5em; }
+.reward-panel .eyebrow { color: #ffc080; font-size: max(13px, 1.1cqw); }
+.reward-total { margin: 0.4em 0; font-size: max(14px, 1.1cqw); }
+.reward-total strong { font-size: max(30px, 3cqw); }
+#reward-message, #reward-expires { font-size: max(12px, 0.95cqw); line-height: 1.6; }
+#reward-qr { display: block; width: min(100%, 240px); height: auto; margin: 12px auto; background: white; padding: 12px; box-sizing: border-box; }
+.result-local-ranking { margin-top: 1em; }
+.result-local-ranking summary { cursor: pointer; padding: 0.7em 0; font-weight: bold; }
 .result-destination > span {
   font-size: 0.9cqw;
   letter-spacing: 0.1em;
