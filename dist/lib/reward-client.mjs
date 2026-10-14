@@ -1,7 +1,7 @@
-const KEY = "power-charge.reward-result.v1";
+const KEY = "power-charge.reward-result.v2";
 const MESSAGES = {
   NOT_CONFIGURED: "ユニコイン連携の設定待ちです。ゲーム結果は記録できます。",
-  STORE_NOT_CONFIGURED: "ユニコイン連携の保存先設定待ちです。",
+  INVALID_SESSION: "プレイ情報が無効です。新しくゲームを開始してください。",
   NO_SESSION: "報酬用セッションを開始できませんでした。ゲーム結果は有効です。",
   SESSION_EXPIRED: "受け取り情報の保存期限が切れました。スタッフにお知らせください。",
   TOO_EARLY: "終了確認中です。少し待って再試行してください。",
@@ -22,7 +22,7 @@ export class RewardClient {
     try {
       const row = JSON.parse(this.storage?.getItem(KEY) || "null");
       if (row && Number.isInteger(row.points) && row.points >= 0 && row.points <= 9999 &&
-          /^[a-f0-9]{64}$/.test(row.sessionId) && typeof row.missionId === "string" && row.missionId.length < 100 &&
+          /^v1\.[A-Za-z0-9_-]{1,900}\.[A-Za-z0-9_-]{43}$/.test(row.sessionId) && typeof row.missionId === "string" && row.missionId.length < 100 &&
           Number.isFinite(row.savedAt) && Date.now() - row.savedAt < 48 * 3600000) {
         this.snapshot = Object.freeze(row);
         this.pending = Promise.resolve({ sessionId: row.sessionId });
@@ -46,7 +46,7 @@ export class RewardClient {
   begin() {
     this.clear();
     this.pending = this.post("/api/session/start", {}).then(data => {
-      if (!/^[a-f0-9]{64}$/.test(data.sessionId)) throw Error("NO_SESSION");
+      if (!/^v1\.[A-Za-z0-9_-]{1,900}\.[A-Za-z0-9_-]{43}$/.test(data.sessionId)) throw Error("NO_SESSION");
       return data;
     }).catch(error => ({ error: error.message }));
   }
@@ -74,7 +74,7 @@ export class RewardClient {
       this.onChange({ status: "success", ...data });
     } catch (error) {
       if (generation !== this.generation) return;
-      this.onChange({ status: "error", message: MESSAGES[error.message] || "QRを取得できませんでした。ゲーム結果は有効です。時間をおいて再試行してください。", retryable: !!this.snapshot?.sessionId && !["SESSION_EXPIRED", "SCORE_CONFLICT", "ADMIN_CONFLICT"].includes(error.message) });
+      this.onChange({ status: "error", message: MESSAGES[error.message] || "QRを取得できませんでした。ゲーム結果は有効です。時間をおいて再試行してください。", retryable: !!this.snapshot?.sessionId && !["INVALID_SESSION", "SESSION_EXPIRED", "SCORE_CONFLICT", "ADMIN_CONFLICT"].includes(error.message) });
     } finally { if (generation === this.generation) this.busy = false; }
   }
 }

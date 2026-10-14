@@ -222,7 +222,7 @@ test("STEP 9: full app journey with synthetic camera/pose adapters", async () =>
   assert.equal(nodes.game.dataset.state, "title");
   let issuedCoins = 3000;
   globalThis.fetch = async url => ({ ok: true, json: async () => url.endsWith("start")
-    ? { sessionId: "a".repeat(64) }
+    ? { sessionId: "v1.c2Vzc2lvbg." + "a".repeat(43) }
     : { coins: issuedCoins, qrImageDataUrl: "data:image/png;base64,aGVsbG8=", expiresAt: Math.floor(Date.now() / 1000) + 86400 } });
   for (const coins of [3000, 0]) {
     issuedCoins = coins;
