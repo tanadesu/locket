@@ -172,8 +172,11 @@ test("STEP 9: full app journey with synthetic camera/pose adapters", async () =>
   await frames(300);
   assert.ok(Number(nodes.power.textContent.replaceAll(",", "")) > 100);
   assert.ok(Number(nodes["power-meter"].attributes["aria-valuenow"]) > 100);
-  nodes.exit.onclick();
+  assert.equal(nodes["pause-game"].hidden, false);
+  nodes["pause-game"].onclick();
   assert.equal(nodes.game.dataset.state, "paused");
+  assert.equal(nodes["pause-game"].hidden, true);
+  assert.equal(nodes["pause-screen"].hidden, false);
   const pausedTime = nodes.time.textContent;
   await frames(180);
   assert.equal(nodes.time.textContent, pausedTime);

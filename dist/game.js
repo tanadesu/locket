@@ -82,6 +82,7 @@ function showScreens() {
   }
   if (state === "error") $("error-screen").hidden = false;
   $("game").dataset.state = state;
+  $("pause-game").hidden = !(["countdown", "charge"].includes(state) || (state === "paused" && engine.pauseReason === "tracking"));
   $("exit").hidden = !["setup", "countdown", "charge", "paused"].includes(
     state,
   );
@@ -473,9 +474,13 @@ $("retry").onclick = start;
 $("error-back").onclick = home;
 $("quit").onclick = home;
 $("upper-body").onclick = () => engine.allowUpperBody();
+$("pause-game").onclick = () => {
+  engine.pause("manual");
+  showScreens();
+};
 $("exit").onclick = () => {
   if (engine.state === "setup") home();
-  else if (engine.state === "paused") home();
+  else if (engine.state === "paused" && engine.pauseReason !== "tracking") home();
   else {
     engine.pause();
     showScreens();
